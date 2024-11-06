@@ -30,6 +30,8 @@ namespace Celeste.Mod.MapperOptions
 
         public static List<Option> TryGetMapperOptionsMetadata(Session session)
         {
+            MapperOptionsModule.ShouldAddOptions = false;
+
             if (!Everest.Content.TryGet($"Maps/{session.MapData.Filename}.meta", out ModAsset asset)) return null;
             if (!(asset?.PathVirtual?.StartsWith("Maps") ?? false)) return null;
             if (!(asset?.TryDeserialize(out MapOptionsMetadata meta) ?? false)) 
@@ -38,7 +40,16 @@ namespace Celeste.Mod.MapperOptions
                 return null; 
             }
             MapOptions = meta?.MapOptions;
-            if (MapOptions.Count > 0) MapperOptionsModule.ShouldAddOptions = true;
+            
+            foreach (Option option in MapOptions)
+            {
+                if (option != null)
+                {
+                    // If we have *any* non-null options, add the menu
+                    MapperOptionsModule.ShouldAddOptions = true;
+                    break;
+                }
+            }
             return MapOptions;
         }
 
@@ -64,48 +75,57 @@ namespace Celeste.Mod.MapperOptions
                 if (T == typeof(TextMenu.OnOff)) 
                 {
                     // If this is the first time opening this menu, we need to add the option to our Big Dictionary
-                    if (!MapperOptionsModuleSaveData.BoolOptions.ContainsKey(itemName))
-                        MapperOptionsModuleSaveData.BoolOptions.Add(itemName, o.StartingBoolValue);
+                    if (!MapperOptionsModuleSettings.BoolOptions.ContainsKey(o.Name))
+                        MapperOptionsModuleSettings.BoolOptions.Add(o.Name, o.StartingBoolValue);
 
-                    item = new TextMenu.OnOff(itemName, MapperOptionsModuleSaveData.BoolOptions.GetValueOrDefault(itemName, o.StartingBoolValue)).Change(value =>
+                    item = new TextMenu.OnOff(itemName, MapperOptionsModuleSettings.BoolOptions.GetValueOrDefault(o.Name, o.StartingBoolValue)).Change(value =>
                     {
-                        level.Session.SetFlag("MO_" + itemName, value);
-                        MapperOptionsModuleSaveData.BoolOptions[itemName] = value;
+                        level.Session.SetFlag("MO_" + o.Name, value);
+                        MapperOptionsModuleSettings.BoolOptions[o.Name] = value;
                     });
 
                     // If it starts true, make sure the flag starts enabled too
-                    if (o.StartingBoolValue) level.Session.SetFlag("MO_" + itemName, true);
+                    MapperOptionsModuleSettings.BoolOptions.TryGetValue(o.Name, out bool b);
+                    if (b) level.Session.SetFlag("MO_" + o.Name, true);
                 } 
+
                 else if (T == typeof(TextMenu.Slider))
                 {
                     // Break our big single string of all the field options down into an array
                     string[] values = o.Values.Replace(" ", "").Split(',');
                     if (values.Length == 0) throw new ArgumentException("Mapper Options: A slider option is specified but has no possible values.");
+                    string[] cleanedValues = new string[values.Length];
+                    for (int i = 0; i < values.Length; i++)
+                    {
+                        cleanedValues[i] = Dialog.Clean(values[i]);
+                    }
 
                     // If this is the first time opening this menu, we need to add the option to our Big Dictionary
-                    if (!MapperOptionsModuleSaveData.StringOptions.ContainsKey(itemName))
-                        MapperOptionsModuleSaveData.StringOptions.Add(itemName, 0);
+                    if (!MapperOptionsModuleSettings.StringOptions.ContainsKey(o.Name))
+                        MapperOptionsModuleSettings.StringOptions.Add(o.Name, 0);
                         
                     item = new TextMenu.Slider(itemName, (int i) => 
                     { 
-                        return Dialog.Clean(values[i]); 
-                    }, 0, values.Length - 1, MapperOptionsModuleSaveData.StringOptions.GetValueOrDefault(itemName, 0))
+                        return cleanedValues[i]; 
+                    }, 0, values.Length - 1, MapperOptionsModuleSettings.StringOptions.GetValueOrDefault(o.Name, 0))
                     .Change(i =>
                     {
                         for (int j = 0; j < values.Length; j++)
                         {
-                            level.Session.SetFlag("MO_" + itemName + "_" + Dialog.Clean(values[j]), (i == j));
+                            level.Session.SetFlag("MO_" + o.Name + "_" + values[j], (i == j));
                         }
-                        MapperOptionsModuleSaveData.StringOptions[itemName] = i;
+                        MapperOptionsModuleSettings.StringOptions[o.Name] = i;
                     });
 
                     // Make sure to set the flag for the appropriate starting option
-                    level.Session.SetFlag("MO_" + itemName + "_" + Dialog.Clean(values[0]), true);
+                    level.Session.SetFlag("MO_" + o.Name + "_" + values[0], true);
                 }
+
                 else if (T == typeof(TextMenu.SubHeader))
                 {
                     item = new TextMenu.SubHeader(itemName);
                 }
+
                 else
                 {
                     // Something has gone horribly wrong.

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System;
 using Monocle;
+using System.Linq;
 
 namespace Celeste.Mod.MapperOptions;
 
@@ -11,15 +12,14 @@ public class MapperOptionsModule : EverestModule {
     public override Type SettingsType => typeof(MapperOptionsModuleSettings);
     public static MapperOptionsModuleSettings Settings => (MapperOptionsModuleSettings) Instance._Settings;
 
-    public override Type SessionType => typeof(MapperOptionsModuleSession);
-    public static MapperOptionsModuleSession Session => (MapperOptionsModuleSession) Instance._Session;
-
     public override Type SaveDataType => typeof(MapperOptionsModuleSaveData);
     public static MapperOptionsModuleSaveData SaveData => (MapperOptionsModuleSaveData) Instance._SaveData;
 
     public List<Option> Options;
 
     public static bool ShouldAddOptions = false;
+
+    public static TextMenu OptionsMenu;
 
     public MapperOptionsModule() {
         Instance = this;
@@ -46,19 +46,19 @@ public class MapperOptionsModule : EverestModule {
 
             menu.Insert(menuIndex - 1, new TextMenu.Button(Dialog.Clean("MapperOptions_Title"))
             {
-                OnPressed = () => {
+                OnPressed = () =>
+                {
                     menu.RemoveSelf();
-
-                    TextMenu accMenu = MapperOptionsMetadata.CreateOptionsMenu(level);
 
                     bool comesFromPauseMainMenu = level.PauseMainMenuOpen;
                     level.PauseMainMenuOpen = false;
 
-                    accMenu.OnESC = accMenu.OnCancel = () => {
+                    OptionsMenu.OnESC = OptionsMenu.OnCancel = () =>
+                    {
                         // close this menu
                         Audio.Play(SFX.ui_main_button_back);
 
-                        accMenu.Close();
+                        OptionsMenu.Close();
 
                         // readd original menu
                         level.Add(menu);
@@ -66,16 +66,30 @@ public class MapperOptionsModule : EverestModule {
                         level.PauseMainMenuOpen = comesFromPauseMainMenu;
                     };
 
-                    accMenu.OnPause = () => {
+                    OptionsMenu.OnPause = () =>
+                    {
                         Audio.Play(SFX.ui_main_button_back);
 
-                        accMenu.Close();
+                        OptionsMenu.Close();
 
                         level.Paused = false;
                         Engine.FreezeTimer = 0.15f;
                     };
 
-                    level.Add(accMenu);
+                    level.Add(OptionsMenu);
+
+                    // Make sure the description on the last selected item gets added, by force.
+                    // If this is the first time opening the menu, find the first non-(sub)header option and add that description instead.
+                    if (OptionsMenu.Current != null && OptionsMenu.Current.OnEnter != null) OptionsMenu.Current.OnEnter();
+                    else
+                    {
+                        foreach (TextMenu.Item item in OptionsMenu.Items)
+                        {
+                            if (item is TextMenu.Header or TextMenu.SubHeader) continue;
+                            if (item.OnEnter != null) item.OnEnter();
+                            break;
+                        }
+                    }
                 }
             });
         }
@@ -85,8 +99,7 @@ public class MapperOptionsModule : EverestModule {
     {
         if (isFromLoader) {
             List<Option> options = MapperOptionsMetadata.TryGetMapperOptionsMetadata(level.Session);
-            if (options == null) return;
-            this.Options = options;
+            if (options != null) OptionsMenu = MapperOptionsMetadata.CreateOptionsMenu(level); else return;
         }
     }
 
