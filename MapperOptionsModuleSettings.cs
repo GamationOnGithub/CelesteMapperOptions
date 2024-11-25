@@ -9,4 +9,7 @@ public class MapperOptionsModuleSettings : EverestModuleSettings {
 
     [SettingIgnore]
     public static Dictionary<string, int> StringOptions { get; set; } = new();
+
+    [SettingIgnore]
+    public static Dictionary<string, bool> EnabledOptions { get; set; } = new();
 }

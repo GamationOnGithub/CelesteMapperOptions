@@ -1,4 +1,5 @@
-﻿using Celeste.Mod.Meta;
+﻿global using Celeste;
+using Celeste.Mod.Meta;
 using System.Collections.Generic;
 using System;
 using Monocle;
@@ -44,6 +45,10 @@ public class MapperOptionsModule : EverestModule {
                 return;
             }
 
+            // Re-create the menu every time to respect current local options
+            // TODO: Find a better performant way of doing this
+            if (OptionsMenu != null) OptionsMenu = MapperOptionsMetadata.CreateOptionsMenu(level);
+
             menu.Insert(menuIndex - 1, new TextMenu.Button(Dialog.Clean("MapperOptions_Title"))
             {
                 OnPressed = () =>
@@ -78,7 +83,7 @@ public class MapperOptionsModule : EverestModule {
 
                     level.Add(OptionsMenu);
 
-                    // Make sure the description on the last selected item gets added, by force.
+                    // Make sure the description on the most recently selected item gets added, by force.
                     // If this is the first time opening the menu, find the first non-(sub)header option and add that description instead.
                     if (OptionsMenu.Current != null && OptionsMenu.Current.OnEnter != null) OptionsMenu.Current.OnEnter();
                     else

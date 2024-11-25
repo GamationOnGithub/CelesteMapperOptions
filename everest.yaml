@@ -1,5 +1,5 @@
 - Name: MapperOptions
-  Version: 0.1.6
+  Version: 0.2.0
   DLL: bin/MapperOptions.dll
   Dependencies:
     - Name: EverestCore
