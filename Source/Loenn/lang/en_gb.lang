@@ -1,0 +1,3 @@
+# Option Zone Trigger
+triggers.MapperOptions/OptionZoneTrigger.placements.name.optionZoneTrigger= Option Zone Trigger
+triggers.MapperOptions/OptionZoneTrigger.attributes.description.toEnable= A comma separated list of options to enable. Use what you put in the Name field in your meta.yaml.
